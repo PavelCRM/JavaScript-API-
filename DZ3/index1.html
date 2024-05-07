@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Случайное фото из Unsplash</title>
+        <style>
+            #photo-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .photo {
+                margin-bottom: 20px;
+            }
+
+            .photo img {
+                max-width: 400px;
+                height: auto;
+            }
+
+            .history {
+                margin-top: 20px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="photo-container">
+            <div class="photo">
+                <img id="photo" src="" alt="Случайное фото" />
+            </div>
+            <div>
+                <p id="photographer"></p>
+                <button id="likeButton">Нравится</button>
+                <span id="likeCount">0</span>
+            </div>
+        </div>
+        <div class="history">
+            <h2>История просмотров</h2>
+            <ul id="historyList"></ul>
+        </div>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const accessKey = "F5dgK46OmEJASBQZO1zEVTobWwi_HS2xFWUDFge3Zx0";
+                const photoElement = document.getElementById("photo");
+                const photographerElement = document.getElementById("photographer");
+                const likeButton = document.getElementById("likeButton");
+                const likeCount = document.getElementById("likeCount");
+                const historyList = document.getElementById("historyList");
+
+                // Получение истории просмотров из локального хранилища
+                let history = JSON.parse(localStorage.getItem("history")) || [];
+
+                // Функция для обновления истории просмотров
+                const updateHistory = () => {
+                    historyList.innerHTML = "";
+                    history.forEach((item) => {
+                        const li = document.createElement("li");
+                        li.textContent = item.user + " - " + item.likes + " лайков";
+                        historyList.appendChild(li);
+                    });
+                };
+
+                // Функция для получения случайного фото из Unsplash
+                const fetchRandomPhoto = async () => {
+                    try {
+                        const response = await fetch(
+                            `https://api.unsplash.com/photos/random/?client_id=${accessKey}`
+                        );
+                        if (!response.ok) {
+                            throw new Error("Не удалось получить случайное фото");
+                        }
+                        const data = await response.json();
+                        return data;
+                    } catch (error) {
+                        console.error(error);
+                    }
+                };
+
+                // Функция для отображения информации о фото
+                const displayPhotoInfo = (photoData) => {
+                    photoElement.src = photoData.urls.regular;
+                    photographerElement.textContent = `Фотограф: ${photoData.user.name}`;
+                    // Проверяем, было ли фото просмотрено ранее, если нет, добавляем в историю
+                    const viewed = history.find((item) => item.id === photoData.id);
+                    if (!viewed) {
+                        history.push({ id: photoData.id, user: photoData.user.name, likes: 0 });
+                        updateHistory();
+                        localStorage.setItem("history", JSON.stringify(history));
+                    } else {
+                        // Если фото уже было просмотрено, обновляем счетчик лайков
+                        likeCount.textContent = viewed.likes;
+                    }
+                };
+
+                // Обработчик события для нажатия кнопки "Нравится"
+                const handleLike = () => {
+                    let count = parseInt(likeCount.textContent);
+                    count++;
+                    likeCount.textContent = count;
+                    // Обновляем количество лайков в истории просмотров
+                    const photoId = photoElement.src.split("/").pop();
+                    const viewed = history.find((item) => item.id === photoId);
+                    if (viewed) {
+                        viewed.likes = count;
+                        localStorage.setItem("history", JSON.stringify(history));
+                    }
+                };
+
+                // Слушатель события для клика по кнопке "Нравится"
+                likeButton.addEventListener("click", handleLike);
+
+                // Загрузка случайного фото при загрузке страницы
+                window.addEventListener("load", async () => {
+                    const randomPhotoData = await fetchRandomPhoto();
+                    displayPhotoInfo(randomPhotoData);
+                });
+            });
+        </script>
+    </body>
+
+</html>
